@@ -681,14 +681,14 @@ nav button.active{color:var(--orange);border-bottom-color:var(--orange)}
             <div style="padding:3px 9px;background:#FFF8D6;color:#A07000;border-radius:6px;font-size:12px;font-weight:900;flex-shrink:0;white-space:nowrap">+3 pts</div>
             <div>
               <div style="font-size:12px;font-weight:700;color:#fff">🎯 Score exact</div>
-              <div style="font-size:11px;color:#AAA">Trouver le score parfait</div>
+              <div style="font-size:11px;color:#AAA">+3 pts bonus (cumulable avec vainqueur &amp; écart)</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:rgba(255,255,255,.05);border-radius:9px;border:1px solid rgba(255,255,255,.09)">
             <div style="padding:3px 9px;background:#E1F5EE;color:#0F6E56;border-radius:6px;font-size:12px;font-weight:900;flex-shrink:0;white-space:nowrap">+1 pt</div>
             <div>
               <div style="font-size:12px;font-weight:700;color:#fff">📊 Bon écart</div>
-              <div style="font-size:11px;color:#AAA">Bonne différence de buts (si ton score n'est pas exact)</div>
+              <div style="font-size:11px;color:#AAA">Bonne différence de buts (en plus du bon vainqueur)</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:rgba(212,160,23,.12);border-radius:9px;border:1px solid rgba(212,160,23,.3)">
@@ -1236,24 +1236,50 @@ function isDouble(m){return !!(m.double);}
 function score(user){
   let pts=0,good=0,exact=0;
   state.matchs.forEach(m=>{
-    if(!m.closed)return;const r=state.resultats[m.id];if(!r||r.scoreA===undefined||r.scoreB===undefined)return;
+    if(!m.closed)return;
+    const r=state.resultats[m.id];
+    if(!r||r.scoreA===undefined||r.scoreB===undefined)return;
     const p=(state.pronostics[user]||{})[m.id]||{};
     const real=r.scoreA>r.scoreB?'1':r.scoreA<r.scoreB?'2':'N';
     const mult=isDouble(m)?2:1;
-    if(p.result===real){pts+=2*mult;good++;}
     const sA=parseInt(p.scoreA),sB=parseInt(p.scoreB);
-    if(!isNaN(sA)&&!isNaN(sB)){if(sA===+r.scoreA&&sB===+r.scoreB){pts+=3*mult;exact++;}else if((sA>sB&&r.scoreA>r.scoreB)||(sA<sB&&r.scoreA<r.scoreB)||(sA===sB&&r.scoreA===r.scoreB))pts+=1*mult;}
+    const hasScore=!isNaN(sA)&&!isNaN(sB);
+    const rightWinner=p.result===real;
+    // +2 bon vainqueur
+    if(rightWinner){pts+=2*mult;good++;}
+    if(hasScore){
+      if(sA===+r.scoreA&&sB===+r.scoreB){
+        // Score exact : +3 (en plus des +2 si vainqueur ok)
+        pts+=3*mult;exact++;
+      } else {
+        // Bonne différence : +1 que le vainqueur soit bon ou pas
+        if((sA-sB)===(+r.scoreA-+r.scoreB)) pts+=1*mult;
+      }
+    }
   });
   return{pts,good,exact};
 }
+
 function matchPts(user,m){
-  if(!m.closed)return null;const r=state.resultats[m.id];if(!r||r.scoreA===undefined||r.scoreB===undefined)return null;
-  const p=(state.pronostics[user]||{})[m.id]||{};if(!p.result&&p.scoreA===undefined)return null;
-  let pts=0;const real=r.scoreA>r.scoreB?'1':r.scoreA<r.scoreB?'2':'N';
+  if(!m.closed)return null;
+  const r=state.resultats[m.id];
+  if(!r||r.scoreA===undefined||r.scoreB===undefined)return null;
+  const p=(state.pronostics[user]||{})[m.id]||{};
+  if(!p.result&&p.scoreA===undefined)return null;
+  let pts=0;
+  const real=r.scoreA>r.scoreB?'1':r.scoreA<r.scoreB?'2':'N';
   const mult=isDouble(m)?2:1;
-  if(p.result===real)pts+=2*mult;
   const sA=parseInt(p.scoreA),sB=parseInt(p.scoreB);
-  if(!isNaN(sA)&&!isNaN(sB)){if(sA===+r.scoreA&&sB===+r.scoreB)pts+=3*mult;else if((sA>sB&&r.scoreA>r.scoreB)||(sA<sB&&r.scoreA<r.scoreB)||(sA===sB&&r.scoreA===r.scoreB))pts+=1*mult;}
+  const hasScore=!isNaN(sA)&&!isNaN(sB);
+  const rightWinner=p.result===real;
+  if(rightWinner)pts+=2*mult;
+  if(hasScore){
+    if(sA===+r.scoreA&&sB===+r.scoreB){
+      pts+=3*mult;
+    } else {
+      if((sA-sB)===(+r.scoreA-+r.scoreB)) pts+=1*mult;
+    }
+  }
   return pts;
 }
 function scorePIUser(user){
